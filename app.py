@@ -28,7 +28,7 @@ if choice == "Loan Calculator":
     st.success(f"Monthly Payment: ${pay:.2f}")
 
 # ----------------------------
-# 2. 储蓄计算器（你必须保留的原版）
+# 2. 储蓄计算器
 # ----------------------------
 elif choice == "Savings Calculator":
     st.subheader("Personal Savings Future Value Calculator")
@@ -62,52 +62,59 @@ elif choice == "Budget Analysis":
     st.info(f"Monthly Savings: ${sav:.2f}")
 
 # ----------------------------
-# 4. 【核心】Yahoo Finance 真实数据模块（替代Wards）
+# 4. Yahoo Finance 数据模块（完全修复版）
 # ----------------------------
 elif choice == "Yahoo Finance Data Analysis":
     st.title("Yahoo Finance Stock Data Analysis")
-    st.markdown("""
+    st.markdown(f"""
     **Data Source**: Yahoo Finance (https://finance.yahoo.com)
-    **Data Type**: Historical daily stock prices
-    **Date Accessed**: """ + datetime.today().strftime('%d %B %Y') + """
-    **Process**: Data Download → Cleaning → Analysis → Visualisation
+    **Date Accessed**: {datetime.today().strftime('%d %B %Y')}
     """)
 
-    # 用户输入股票代码和日期范围
-    ticker = st.text_input("Enter Stock Ticker (e.g. AAPL, MSFT, GOOGL)", "AAPL")
+    ticker = st.text_input("Stock Ticker (e.g. AAPL, MSFT)", "AAPL")
     start_date = st.date_input("Start Date", pd.to_datetime("2023-01-01"))
     end_date = st.date_input("End Date", pd.to_datetime("today"))
 
     if st.button("Load & Analyze Data"):
-        with st.spinner("Downloading data from Yahoo Finance..."):
+        with st.spinner("Downloading data..."):
             # 1. 下载数据
             data = yf.download(ticker, start=start_date, end=end_date)
 
             if not data.empty:
                 st.success("Data downloaded successfully!")
 
-                # 2. 数据清洗（作业必写得分点）
+                # 2. 处理多层索引 → 变成普通列
+                data.columns = data.columns.get_level_values(0)
+
+                # 3. 数据清洗
                 st.subheader("Step 1: Data Cleaning")
-                data_clean = data.dropna()  # 删除空值
-                data_clean['Daily Return'] = data_clean['Close'].pct_change() # 计算日收益率
-                data_clean = data_clean.dropna() # 删除计算收益率后产生的空值
-                st.write(f"Original Data Rows: {len(data)}")
-                st.write(f"Cleaned Data Rows: {len(data_clean)}")
+                data_clean = data.dropna()
+                data_clean['Daily Return'] = data_clean['Close'].pct_change()
+                data_clean = data_clean.dropna()
+
+                st.write(f"Original rows: {len(data)}")
+                st.write(f"Cleaned rows: {len(data_clean)}")
                 st.dataframe(data_clean.head(10))
 
-                # 3. 数据分析
+                # 4. 数据分析（使用独立变量，彻底修复 f-string 报错）
                 st.subheader("Step 2: Data Analysis")
-                st.write(f"**Mean Closing Price**: ${data_clean['Close'].mean():.2f}")
-                st.write(f"**Price Volatility (Std Dev)**: {data_clean['Daily Return'].std():.4f}")
-                st.write(f"**Highest Price**: ${data_clean['Close'].max():.2f}")
-                st.write(f"**Lowest Price**: ${data_clean['Close'].min():.2f}")
 
-                # 4. 可视化
-                st.subheader("Step 3: Price Trend Visualisation")
+                mean_price = data_clean['Close'].mean()
+                volatility = data_clean['Daily Return'].std()
+                high_price = data_clean['Close'].max()
+                low_price = data_clean['Close'].min()
+
+                st.write(f"**Mean Closing Price**: ${mean_price:.2f}")
+                st.write(f"**Price Volatility (Std Dev)**: {volatility:.4f}")
+                st.write(f"**Highest Price**: ${high_price:.2f}")
+                st.write(f"**Lowest Price**: ${low_price:.2f}")
+
+                # 5. 可视化
+                st.subheader("Step 3: Price Trend")
                 fig, ax = plt.subplots(figsize=(10,4))
-                ax.plot(data_clean.index, data_clean['Close'], label=f"{ticker} Close Price", color='blue')
-                ax.set_title(f"{ticker} Stock Price Trend")
-                ax.legend()
+                ax.plot(data_clean.index, data_clean['Close'], color='blue')
+                ax.set_title(f"{ticker} Closing Price Trend")
                 st.pyplot(fig)
+
             else:
-                st.error("Failed to download data. Please check the ticker symbol and try again.")
+                st.error("Data download failed. Please check the ticker symbol.")
